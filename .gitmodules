@@ -1,0 +1,6 @@
+[submodule "ThirdParty/LibSWBF2"]
+	path = ThirdParty/LibSWBF2
+	url = https://github.com/Ben1138/LibSWBF2.git
+[submodule "ThirdParty/lua5.0-swbf2-x64"]
+	path = ThirdParty/lua5.0
+	url = https://github.com/Ben1138/lua5.0-swbf2-x64.git

@@ -3,6 +3,7 @@
 #include "Misc/Paths.h"
 #include "UnrealFrontGame.h"
 #include "UnrealFront/UnrealFront.h"
+#include "RealtimeMeshSimple.h"
 #include "LuaAPI.h"
 #include <LibSWBF2/LibSWBF2.h>
 
@@ -88,12 +89,12 @@ float_t UImporter::GetOverallProgress() const
 	return Container->GetOverallProgress();
 }
 
-FVector2D UImporter::ToUnreal(const LibSWBF2::Vector2& vector)
+FVector2f UImporter::ToUnreal(const LibSWBF2::Vector2& vector)
 {
 	return { vector.m_X, vector.m_Y };
 }
 
-FVector UImporter::ToUnreal(const LibSWBF2::Vector3& vector)
+FVector3f UImporter::ToUnreal(const LibSWBF2::Vector3& vector)
 {
 	// convert from SWBF2s right-handed-Y-up to Unreals left-handed-Z-up
 	// switch Y and Z, flip X and Z
@@ -117,9 +118,9 @@ FLinearColor UImporter::ToLinearColor(const LibSWBF2::Color4f& color)
 	return { color.m_Red, color.m_Green, color.m_Blue, color.m_Alpha };
 }
 
-TArray<FVector> UImporter::ConvertVertexBuffer(uint32 count, LibSWBF2::Vector3* buffer)
+TArray<FVector3f> UImporter::ConvertVertexBuffer(uint32 count, LibSWBF2::Vector3* buffer)
 {
-	TArray<FVector> result;
+	TArray<FVector3f> result;
 	for (uint32 i = 0; i < count; ++i)
 	{
 		// negate X and flip Y and Z to fit Unreal's coordinate system
@@ -128,9 +129,9 @@ TArray<FVector> UImporter::ConvertVertexBuffer(uint32 count, LibSWBF2::Vector3* 
 	return result;
 }
 
-TArray<FVector> UImporter::ConvertVertexBuffer(uint32 count, LibSWBF2::Vector3* buffer, float multiplicator)
+TArray<FVector3f> UImporter::ConvertVertexBuffer(uint32 count, LibSWBF2::Vector3* buffer, float multiplicator)
 {
-	TArray<FVector> result;
+	TArray<FVector3f> result;
 	for (uint32 i = 0; i < count; ++i)
 	{
 		// negate X and flip Y and Z to fit Unreal's coordinate system
@@ -180,9 +181,9 @@ TArray<int32> UImporter::ConvertIndexBuffer(uint32 count, uint32* buffer)
 //	return result;
 //}
 
-TArray<FVector2D> UImporter::ConvertUVBuffer(uint32 count, LibSWBF2::Vector2* buffer)
+TArray<FVector2f> UImporter::ConvertUVBuffer(uint32 count, LibSWBF2::Vector2* buffer)
 {
-	TArray<FVector2D> result;
+	TArray<FVector2f> result;
 	for (uint32 i = 0; i < count; ++i)
 	{
 		result.Add(ToUnreal(buffer[i]));
@@ -223,7 +224,7 @@ TArray<FColor> UImporter::ConvertColorBuffer(uint32 count, LibSWBF2::Color4u8* b
 //	params.ObjectFlags = EObjectFlags::RF_Transient;
 //
 //	ALight* lightActor = nullptr;
-//	FVector position = ToUnreal(light.GetPosition()) * 100.0f;
+//	FVector3f position = ToUnreal(light.GetPosition()) * 100.0f;
 //
 //	LibSWBF2::Vector4 libQuat = light.GetRotation();
 //	FRotator rotation = ToUnreal(light.GetRotation()).Rotator();
@@ -282,9 +283,9 @@ TArray<FColor> UImporter::ConvertColorBuffer(uint32 count, LibSWBF2::Color4u8* b
 //		case ELightType::Dir:
 //		{
 //			lightActor = targetWorld->SpawnActor<ADirectionalLight>(position, rotation, params);
-//			//lightActor->GetTransform().TransformRotation(FQuat::MakeFromEuler(FVector(-rotation.Roll, -rotation.Pitch, rotation.Yaw)));
-//			//lightActor->GetTransform().TransformRotation(FQuat::MakeFromEuler(FVector(10.0f, 20.0f, 30.0f)));
-//			FVector euler = lightActor->GetTransform().GetRotation().Euler();
+//			//lightActor->GetTransform().TransformRotation(FQuat::MakeFromEuler(FVector3f(-rotation.Roll, -rotation.Pitch, rotation.Yaw)));
+//			//lightActor->GetTransform().TransformRotation(FQuat::MakeFromEuler(FVector3f(10.0f, 20.0f, 30.0f)));
+//			FVector3f euler = lightActor->GetTransform().GetRotation().Euler();
 //			FRotator rotator = lightActor->GetTransform().Rotator();
 //
 //			lightActor->GetLightComponent()->SetIntensity(2.0f);
@@ -312,11 +313,13 @@ AProcStaticMeshActor* UImporter::ImportModel(const LibSWBF2::Model& model, const
 	if (targetWorld == nullptr)
 	{
 		UE_LOG(LogUF, Error, TEXT("Given targetWorld is NULL!"));
+		TRAP;
 		return nullptr;
 	}
 	if (materialSettings.DefaultMaterial == nullptr)
 	{
 		UE_LOG(LogUF, Warning, TEXT("No default Material specified!"));
+		TRAP;
 		return nullptr;
 	}
 
@@ -349,96 +352,128 @@ AProcStaticMeshActor* UImporter::ImportModel(const LibSWBF2::Model& model, const
 	//	return actor;
 	//}
 
-	UProceduralMeshComponent* comp = actor->GetProcMeshComp();
-	//URuntimeMeshProviderStatic* provider = NewObject<URuntimeMeshProviderStatic>();
-	//comp->Initialize(provider);
+	URealtimeMeshComponent* comp = actor->GetRealtimeMeshComponent();
+	URealtimeMeshSimple* mesh = comp->InitializeRealtimeMesh<URealtimeMeshSimple>();
+
+	RealtimeMesh::FRealtimeMeshStreamSet streamSet;
+	RealtimeMesh::TRealtimeMeshBuilderLocal<uint16, FPackedNormal, FVector2DHalf> builder(streamSet);
+
+	builder.EnableTangents();
+	builder.EnableColors();
+	builder.EnableTexCoords();
+	builder.EnablePolyGroups();
 
 	const LibSWBF2::List<LibSWBF2::Segment>& segments = model.GetSegments();
 	for (size_t i = 0; i < segments.Size(); ++i)
 	{
 		LibSWBF2::ETopology topology = segments[i].GetTopology();
 
-		TArray<FVector> vertices;
-		TArray<int32> triangles;
-		TArray<FVector> normals;
-		TArray<FVector2D> uv0;
-		TArray<FVector2D> uv1;
-		TArray<FVector2D> uv2;
-		TArray<FVector2D> uv3;
-		TArray<FColor> vertexColors;
-		TArray<FProcMeshTangent> tangents;
+		uint32 numVertices;
+		uint32 numNormals;
+		uint32 numUV0;
+		
+		LibSWBF2::Vector3* vertices;
+		LibSWBF2::Vector3* normals;
+		LibSWBF2::Vector2* uv0;
 
+		segments[i].GetVertexBuffer(numVertices, vertices);
+		segments[i].GetNormalBuffer(numNormals, normals);
+		segments[i].GetUVBuffer(numUV0, uv0);
+
+		if (numVertices != numNormals || numVertices != numUV0)
 		{
-			uint32 count;
-			LibSWBF2::Vector3* buffer;
-			segments[i].GetVertexBuffer(count, buffer);
-			vertices = ConvertVertexBuffer(count, buffer, 100.0f);
+			UE_LOG(LogUF, Error, TEXT("Buffer lengths do not align in segment %i of '%s'!"), i, *instanceName);
+			TRAP;
+			continue;
 		}
 
+		// The realtime mesh builder doesn't have individual buffers per segment, but
+		// so called "polygroups", and we need to keep track of the global vertex indices
+		TArray<int32> globalIndices;
+		globalIndices.SetNum(numVertices);
+		for (uint32 j = 0; j < numVertices; j++)
 		{
-			uint32 count;
-			uint16* buffer;
-			segments[i].GetIndexBuffer(count, buffer);
-			TArray<int32> indices = ConvertIndexBuffer(count, buffer);
+			int32 idx = builder.AddVertex(ToUnreal(vertices[j]) * 100.0f)
+				.SetNormal(ToUnreal(normals[j]))
+				.SetTexCoord(ToUnreal(uv0[j]));
+			globalIndices[j] = idx;
+		}
 
-			if (topology == LibSWBF2::ETopology::TriangleList)
+
+		uint32 numIndices;
+		uint16* indices;
+		segments[i].GetIndexBuffer(numIndices, indices);
+
+		switch (topology)
+		{
+			case LibSWBF2::ETopology::TriangleList:
 			{
+				TRAP;
 				// Unreal expects Triangles Lists, so no conversion needed
-				// TODO: or is there? we shall see...
-				triangles = indices;
-				UE_LOG(LogUF, Warning, TEXT("Segment %i of %s is TriangleList"), i, *instanceName);
-			}
-			else if (topology == LibSWBF2::ETopology::TriangleStrip)
-			{
-				// convert from Triangle Strip to Triangle List (what Unreal expects)
-				int32 triCount = 0;
-				int32 numIndices = indices.Num();
-				for (int32 j = 0; j < numIndices; ++j)
+				if (numIndices % 3 != 0)
 				{
-					if (triCount == 3)
-					{
-						j -= 2;
-						triCount = 0;
-					}
-
-					triangles.Add(indices[j]);
-					triCount++;
+					UE_LOG(LogUF, Error, TEXT("Segment %i of '%s' has a faulty index buffer length of %i!"), i, *instanceName, numIndices);
+					TRAP;
+					break;
 				}
 
-				//after conversion to Triangle List, indices are listed CW CCW CW CCW, so let's flip them
-				bool flip = false;
-				int32 numTriangles = triangles.Num();
-				for (int32 j = 0; j < numTriangles; j += 3)
+				UE_LOG(LogUF, Display, TEXT("Segment %i of '%s' is TriangleList"), i, *instanceName);
+				for (uint16 j = 0; j < numIndices; j += 3)
 				{
-					if (flip)
+					builder.AddTriangle(
+						globalIndices[indices[j + 2]], 
+						globalIndices[indices[j + 1]], 
+						globalIndices[indices[j + 0]], 
+						i/* This is the polygroup index */
+					);
+				}
+
+				break;
+			}
+			case LibSWBF2::ETopology::TriangleStrip:
+			{
+				// convert from Triangle Strip to Triangle List (what Unreal expects)
+				bool flip = false;
+				for (uint32 j = 0; j < numIndices - 2; j++)
+				{
+					if (!flip)
 					{
-						Swap(triangles[j], triangles[j + 2]);
+						builder.AddTriangle(
+							globalIndices[indices[j + 0]], 
+							globalIndices[indices[j + 1]], 
+							globalIndices[indices[j + 2]], 
+							i/* This is the polygroup index */
+						);
+					}
+					else	
+					{
+						builder.AddTriangle(
+							globalIndices[indices[j + 2]], 
+							globalIndices[indices[j + 1]], 
+							globalIndices[indices[j + 0]], 
+							i/* This is the polygroup index */
+						);
 					}
 					flip = !flip;
 				}
+
+				break;
 			}
-			else
+			default:	
 			{
 				UE_LOG(LogUF, Warning, TEXT("Skipping unsupported segment topology: %s"), LIBSTR_TO_TCHAR(LibSWBF2::TopologyToString(topology)));
+				TRAP;
 				continue;
 			}
 		}
 
-		{
-			uint32 count;
-			LibSWBF2::Vector3* buffer;
-			segments[i].GetNormalBuffer(count, buffer);
-			normals = ConvertVertexBuffer(count, buffer);
-		}
-
-		{
-			uint32 count;
-			LibSWBF2::Vector2* buffer;
-			segments[i].GetUVBuffer(count, buffer);
-			uv0 = ConvertUVBuffer(count, buffer);
-		}
-
-		comp->CreateMeshSection(i, vertices, triangles, normals, uv0, uv1, uv2, uv3, vertexColors, tangents, false);
+		FName segmentName = FName(FString::Printf(TEXT("Segment %02d"), i));
+		mesh->SetupMaterialSlot(i, segmentName);
+		const FRealtimeMeshSectionGroupKey groupKey = FRealtimeMeshSectionGroupKey::Create(i, segmentName);
+		const FRealtimeMeshSectionKey sectionKey = FRealtimeMeshSectionKey::CreateForPolyGroup(groupKey, i);
+		mesh->CreateSectionGroup(groupKey, streamSet);
+		mesh->UpdateSectionConfig(sectionKey, FRealtimeMeshSectionConfig(i));
+		continue;
 
 		//UMaterialInstanceDynamic* material = comp->CreateDynamicMaterialInstance(i, materialSettings.DefaultMaterial);
 		//provider->SetupMaterialSlot(i, "SWBF2MaterialSlot", material);
@@ -454,10 +489,10 @@ AProcStaticMeshActor* UImporter::ImportModel(const LibSWBF2::Model& model, const
 			}
 			else
 			{
-				UTexture2D* ueTexture = ImportTexture(*lvlTexture);
-				if (ueTexture != nullptr)
+				UTexture2D* texture = ImportTexture(*lvlTexture);
+				if (texture != nullptr)
 				{
-					//material->SetTextureParameterValue(materialSettings.AlbedoParameterName, ueTexture);
+					//material->SetTextureParameterValue(materialSettings.AlbedoParameterName, texture);
 				}
 			}
 		}
@@ -611,10 +646,10 @@ AProcStaticMeshActor* UImporter::ImportTerrain(const LibSWBF2::Terrain& terrain,
 //	//URuntimeMeshProviderStatic* provider = NewObject<URuntimeMeshProviderStatic>();
 //	//comp->Initialize(provider);
 //
-//	TArray<FVector> vertices;
+//	TArray<FVector3f> vertices;
 //	TArray<int32> triangles;
-//	TArray<FVector> normals;
-//	TArray<FVector2D> uv0;
+//	TArray<FVector3f> normals;
+//	TArray<FVector2f> uv0;
 //	TArray<FColor> vertexColors;
 //	TArray<FProcMeshTangent> tangents;
 //	FRuntimeMeshCollisionVertexStream collVertices;
@@ -859,7 +894,7 @@ bool UImporter::ExecuteLUA(LibSWBF2::Handle lvlHandle, const FString& scriptName
 //		FString instanceType = LIBSTR_TO_TCHAR(instances[i].GetType());
 //		FString instanceName = LIBSTR_TO_TCHAR(instances[i].GetName());
 //
-//		FVector position = ToUnreal(instances[i].GetPosition()) * 100.0f;
+//		FVector3f position = ToUnreal(instances[i].GetPosition()) * 100.0f;
 //		FRotator rotation = ToUnreal(instances[i].GetRotation()).Rotator();
 //
 //		String geometryName;

@@ -51,6 +51,24 @@ void UUnrealFrontGame::Init()
 	}
 
 	Importer = NewObject<UImporter>();
+	const FString geo = GameDataPath + "/data/_lvl_pc/geo/geo1.lvl";
+	const LibSWBF2::Handle hLevel = Importer->AddLevel(geo, nullptr);
+
+	UE_LOG(LogUF, Warning, TEXT("Start Loading"));
+	Importer->StartLoading();
+	while (!Importer->IsDone())
+	{
+		//UE_LOG(LogUF, Warning, TEXT("Progress: %.0f"), Importer->GetOverallProgress() * 100.0f);
+	}
+
+	const LibSWBF2::Level* level = Importer->GetLevel(hLevel);
+	//const LibSWBF2::Model* model1 = level->GetModel("geo_bldg_bunker_1");
+	const LibSWBF2::Model* model2 = level->GetModel("geo_bldg_bunker_1_outside");
+
+	FModelImportSettings modelSettings;
+	FMaterialImportSettings materialSettings;
+	//Importer->ImportModel(*model1, modelSettings, materialSettings, GetCurrentLevel());
+	Importer->ImportModel(*model2, modelSettings, materialSettings, GetCurrentLevel());
 }
 
 void UUnrealFrontGame::Shutdown()

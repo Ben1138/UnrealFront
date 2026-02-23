@@ -74,6 +74,9 @@ Plugins/**/Intermediate/*
 # Cache files for the editor to use
 DerivedDataCache/*
 
+__ExternalActors__
+__ExternalObjects__
+
 # Visual Studio Code on Linux
 .ignore
 .vscode/*

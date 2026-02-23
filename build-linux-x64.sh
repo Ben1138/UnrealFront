@@ -43,13 +43,17 @@ DOT_NET="$UNREAL_DIR/Engine/Binaries/ThirdParty/DotNet/$DOT_NET_VERSION/linux-x6
 popd
 
 # Build UnrealFront
-#$UNREAL_DIR/Engine/Build/BatchFiles/Linux/Build.sh"  -projectfiles -project="$SCRIPT_DIR/UnrealFront.uproject" -game -rocket -progress
+#"$UNREAL_DIR/Engine/Build/BatchFiles/Linux/Build.sh" -projectfiles -project="$SCRIPT_DIR/UnrealFront.uproject" -game -rocket -progress
+#"$UNREAL_DIR/Engine/Build/BatchFiles/Linux/Build.sh" UnrealFrontEditor Linux Development "$SCRIPT_DIR/UnrealFront.uproject"
 "$DOT_NET" "$UNREAL_DIR/Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll" \
+	-ModuleWithSuffix=UnrealFront,4269 \
 	UnrealFrontEditor \
 	Linux \
-	Development \
-	-ModuleWithSuffix=UnrealFront,6671 \
+	DebugGame \
 	-Project="$SCRIPT_DIR/UnrealFront.uproject" \
+	"$SCRIPT_DIR/UnrealFront.uproject" \
 	-IgnoreJunk \
 	-progress
 
+
+#"$UNREAL_DIR/Engine/Build/BatchFiles/RunUAT.sh" BuildPlugin -plugin="$SCRIPT_DIR/Plugins/RealtimeMeshComponent/RealtimeMeshComponent.uplugin" -package="$SCRIPT_DIR/Plugins/RealtimeMeshComponent/PACKAGED"

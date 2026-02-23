@@ -4,3 +4,6 @@
 [submodule "ThirdParty/lua5.0-swbf2-x64"]
 	path = ThirdParty/lua5.0
 	url = https://github.com/Ben1138/lua5.0-swbf2-x64.git
+[submodule "Plugins/RealtimeMeshComponent"]
+	path = Plugins/RealtimeMeshComponent
+	url = https://github.com/TriAxis-Games/RealtimeMeshComponent

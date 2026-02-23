@@ -9,6 +9,12 @@
 #define LIBSTR_TO_TCHAR(txt) LIB_TO_TCHAR(txt.Buffer())
 #define FSTR_TO_LIBSTR(txt) TCHAR_TO_LIB(*txt)
 
+#ifdef WITH_EDITOR
+	#define TRAP __builtin_trap()
+#else
+	#define TRAP 
+#endif
+
 
 USTRUCT(BlueprintType)
 struct FMaterialImportSettings

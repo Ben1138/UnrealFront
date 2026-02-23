@@ -1,7 +1,7 @@
 // GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007. See LICENSE in the root of this repository or https://www.gnu.org/licenses/
 #pragma once
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+//#include "Blueprint/UserWidget.h"
 #include "ProcStaticMeshActor.h"
 #include "Structs.h"
 #include <LibSWBF2/LibSWBF2.h>
@@ -14,14 +14,17 @@ class UImporter : public UObject //, public FTickableGameObject
 {
 	GENERATED_UCLASS_BODY()
 
+public:
 	~UImporter();
 
-	LibSWBF2::Container* Container;
+	UFUNCTION(BlueprintCallable)
+	UTexture2D* ImportTexture(const FString& textureName);
 
-	TSet<FString> LoadedTerrains;
-	TMap<FString, AProcStaticMeshActor*> ModelCache;
-	TMap<FString, UTexture2D*> TextureCache;
-	TMap<LibSWBF2::FNVHash, USoundWave*> SoundCache;
+	UFUNCTION(BlueprintCallable)
+	USoundWave* ImportSound(const FString& soundName);
+
+	UFUNCTION(BlueprintCallable)
+	bool GetLocalizedString(const FString& language, const FString& localizePath, FString& outLocalized);
 
 public:
 	LibSWBF2::Handle AddLevel(const FString& path, const TSet<FString>* subLVLFilter=nullptr);
@@ -41,40 +44,39 @@ public:
 	//virtual bool IsTickable() const override;
 	//virtual TStatId GetStatId() const override;
 
-	UFUNCTION(BlueprintCallable)
-	UTexture2D* ImportTexture(const FString& textureName);
-
-	UFUNCTION(BlueprintCallable)
-	USoundWave* ImportSound(const FString& soundName);
-
-	UFUNCTION(BlueprintCallable)
-	bool GetLocalizedString(const FString& language, const FString& localizePath, FString& outLocalized);
-
 	UTexture2D* ImportTexture(const LibSWBF2::Texture& lvlTexture);
-	bool ExecuteLUA(const FString& scriptName);
-	bool ExecuteLUA(LibSWBF2::Handle lvlHandle, const FString& scriptName);
-
-private:
-	FVector ToUnreal(const LibSWBF2::Vector3& vector);
-	FVector2D ToUnreal(const LibSWBF2::Vector2& vector);
-	FQuat ToUnreal(const LibSWBF2::Vector4& quaternion);
-	FColor ToUnreal(const LibSWBF2::Color4u8& color);
-	FLinearColor ToLinearColor(const LibSWBF2::Color4f& color); 
-	TArray<FVector> ConvertVertexBuffer(uint32 count, LibSWBF2::Vector3* buffer);
-	TArray<FVector> ConvertVertexBuffer(uint32 count, LibSWBF2::Vector3* buffer, float multiplicator);
-	//FRuntimeMeshCollisionVertexStream ConvertVertexBufferRMC(uint32 count, LibSWBF2::Vector3* buffer, float multiplicator);
-	TArray<int32> ConvertIndexBuffer(uint32 count, uint16* buffer);
-	TArray<int32> ConvertIndexBuffer(uint32 count, uint32* buffer);
-	//FRuntimeMeshCollisionTriangleStream ConvertIndexBufferRMC(uint32 count, uint32* buffer);
-	TArray<FVector2D> ConvertUVBuffer(uint32 count, LibSWBF2::Vector2* buffer);
-	TArray<FColor> ConvertColorBuffer(uint32 count, LibSWBF2::Color4u8* buffer);
-
 	//ALight* ImportLight(const LibSWBF2::Light& light, ULevel* spawnLevel);
 	AProcStaticMeshActor* ImportModel(const LibSWBF2::Model& model, const FModelImportSettings& modelSettings, const FMaterialImportSettings& materialSettings, ULevel* spawnLevel, FString nameOverride="");
 	//ASkeletalMeshActor* ImportSkeletalMesh(const LibSWBF2::Model& model, const FModelImportSettings& modelSettings, const FMaterialImportSettings& materialSettings);
 	AProcStaticMeshActor* ImportTerrain(const LibSWBF2::Terrain& terrain, bool bEnsureImportOnce, const FMaterialImportSettings& materialSettings, ULevel* spawnLevel);
 	USoundWave* ImportSound(const LibSWBF2::Sound& sound);
 	//void ImportWorld(const LibSWBF2::World& lvlWorld, const FMaterialImportSettings& materialSettings, ULevel* spawnLevel);
+
+	bool ExecuteLUA(const FString& scriptName);
+	bool ExecuteLUA(LibSWBF2::Handle lvlHandle, const FString& scriptName);
+
+private:
+	LibSWBF2::Container* Container;
+
+	TSet<FString> LoadedTerrains;
+	TMap<FString, AProcStaticMeshActor*> ModelCache;
+	TMap<FString, UTexture2D*> TextureCache;
+	TMap<LibSWBF2::FNVHash, USoundWave*> SoundCache;
+
+private:
+	FVector3f ToUnreal(const LibSWBF2::Vector3& vector);
+	FVector2f ToUnreal(const LibSWBF2::Vector2& vector);
+	FQuat ToUnreal(const LibSWBF2::Vector4& quaternion);
+	FColor ToUnreal(const LibSWBF2::Color4u8& color);
+	FLinearColor ToLinearColor(const LibSWBF2::Color4f& color); 
+	TArray<FVector3f> ConvertVertexBuffer(uint32 count, LibSWBF2::Vector3* buffer);
+	TArray<FVector3f> ConvertVertexBuffer(uint32 count, LibSWBF2::Vector3* buffer, float multiplicator);
+	//FRuntimeMeshCollisionVertexStream ConvertVertexBufferRMC(uint32 count, LibSWBF2::Vector3* buffer, float multiplicator);
+	TArray<int32> ConvertIndexBuffer(uint32 count, uint16* buffer);
+	TArray<int32> ConvertIndexBuffer(uint32 count, uint32* buffer);
+	//FRuntimeMeshCollisionTriangleStream ConvertIndexBufferRMC(uint32 count, uint32* buffer);
+	TArray<FVector2f> ConvertUVBuffer(uint32 count, LibSWBF2::Vector2* buffer);
+	TArray<FColor> ConvertColorBuffer(uint32 count, LibSWBF2::Color4u8* buffer);
 };
 
 //UCLASS(BlueprintType)

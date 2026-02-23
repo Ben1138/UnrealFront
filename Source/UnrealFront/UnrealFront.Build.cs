@@ -22,7 +22,7 @@ public class UnrealFront : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] 
 			{
-				"ProceduralMeshComponent"
+				"RealtimeMeshComponent"
 			}
 		);
 

@@ -1,8 +1,8 @@
 // GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007. See LICENSE in the root of this repository or https://www.gnu.org/licenses/
 #pragma once
 #include "CoreMinimal.h"
-#include "ProceduralMeshComponent.h"
 #include "GameFramework/Actor.h"
+#include "RealtimeMeshComponent/Public/RealtimeMeshComponent.h"
 
 #include "ProcStaticMeshActor.generated.h"
 
@@ -16,9 +16,9 @@ public:
 	// Sets default values for this actor's properties
 	AProcStaticMeshActor();
 
-	inline UProceduralMeshComponent* GetProcMeshComp()
+	inline URealtimeMeshComponent* GetRealtimeMeshComponent()
 	{
-		return ProcMeshComp;
+		return MeshComp;
 	}
 
 //protected:
@@ -30,5 +30,7 @@ public:
 //	virtual void Tick(float DeltaTime) override;
 
 private:
-	UProceduralMeshComponent* ProcMeshComp;
+	UPROPERTY(Category = "RealtimeMeshActor", VisibleAnywhere, BlueprintReadOnly,
+		meta = (ExposeFunctionCategories = "Mesh,Rendering,Physics,Components|StaticMesh", AllowPrivateAccess = "true"))
+	URealtimeMeshComponent* MeshComp;
 };

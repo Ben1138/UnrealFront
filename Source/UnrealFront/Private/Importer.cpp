@@ -316,12 +316,12 @@ AProcStaticMeshActor* UImporter::ImportModel(const LibSWBF2::Model& model, const
 		TRAP;
 		return nullptr;
 	}
-	if (materialSettings.DefaultMaterial == nullptr)
-	{
-		UE_LOG(LogUF, Warning, TEXT("No default Material specified!"));
-		TRAP;
-		return nullptr;
-	}
+	//if (materialSettings.DefaultMaterial == nullptr)
+	//{
+	//	UE_LOG(LogUF, Warning, TEXT("No default Material specified!"));
+	//	TRAP;
+	//	return nullptr;
+	//}
 
 	//AProcStaticMeshActor** cached = ModelCache.Find(LIBSTR_TO_TCHAR(model.GetName()));
 	FString modelName = LIBSTR_TO_TCHAR(model.GetName());
@@ -338,8 +338,6 @@ AProcStaticMeshActor* UImporter::ImportModel(const LibSWBF2::Model& model, const
 	//params.Template = cached != nullptr ? *cached : nullptr;
 
 	AProcStaticMeshActor* actor = targetWorld->SpawnActor<AProcStaticMeshActor>(modelSettings.SpawnPosition, modelSettings.SpawnRotation, params);
-	//actor->SetMobility(EComponentMobility::Stationary);
-	//actor->SetRuntimeMeshMobility(ERuntimeMeshMobility::Stationary);
 
 #ifdef WITH_EDITOR
 	actor->SetActorLabel(instanceName);
@@ -356,7 +354,11 @@ AProcStaticMeshActor* UImporter::ImportModel(const LibSWBF2::Model& model, const
 	URealtimeMeshSimple* mesh = comp->InitializeRealtimeMesh<URealtimeMeshSimple>();
 
 	RealtimeMesh::FRealtimeMeshStreamSet streamSet;
-	RealtimeMesh::TRealtimeMeshBuilderLocal<uint16, FPackedNormal, FVector2DHalf> builder(streamSet);
+	RealtimeMesh::TRealtimeMeshBuilderLocal<uint32, FPackedNormal, FVector2DHalf> builder(streamSet);
+
+	const FRealtimeMeshLODKey lodKey(0);
+	const FName groupName = FName(FString::Printf(TEXT("Group of '%s'"), *instanceName));
+	const FRealtimeMeshSectionGroupKey groupKey = FRealtimeMeshSectionGroupKey::Create(lodKey, groupName);
 
 	builder.EnableTangents();
 	builder.EnableColors();
@@ -364,6 +366,8 @@ AProcStaticMeshActor* UImporter::ImportModel(const LibSWBF2::Model& model, const
 	builder.EnablePolyGroups();
 
 	const LibSWBF2::List<LibSWBF2::Segment>& segments = model.GetSegments();
+	TArray<FRealtimeMeshSectionKey> sectionKeys;
+	sectionKeys.SetNum(segments.Size());
 	for (size_t i = 0; i < segments.Size(); ++i)
 	{
 		LibSWBF2::ETopology topology = segments[i].GetTopology();
@@ -389,7 +393,7 @@ AProcStaticMeshActor* UImporter::ImportModel(const LibSWBF2::Model& model, const
 
 		// The realtime mesh builder doesn't have individual buffers per segment, but
 		// so called "polygroups", and we need to keep track of the global vertex indices
-		TArray<int32> globalIndices;
+		TArray<uint32> globalIndices;
 		globalIndices.SetNum(numVertices);
 		for (uint32 j = 0; j < numVertices; j++)
 		{
@@ -467,12 +471,12 @@ AProcStaticMeshActor* UImporter::ImportModel(const LibSWBF2::Model& model, const
 			}
 		}
 
-		FName segmentName = FName(FString::Printf(TEXT("Segment %02d"), i));
+		const FName segmentName = FName(FString::Printf(TEXT("Segment %02d"), i));
 		mesh->SetupMaterialSlot(i, segmentName);
-		const FRealtimeMeshSectionGroupKey groupKey = FRealtimeMeshSectionGroupKey::Create(i, segmentName);
 		const FRealtimeMeshSectionKey sectionKey = FRealtimeMeshSectionKey::CreateForPolyGroup(groupKey, i);
-		mesh->CreateSectionGroup(groupKey, streamSet);
-		mesh->UpdateSectionConfig(sectionKey, FRealtimeMeshSectionConfig(i));
+		sectionKeys[i] = sectionKey;
+	
+		// TODO: Remove
 		continue;
 
 		//UMaterialInstanceDynamic* material = comp->CreateDynamicMaterialInstance(i, materialSettings.DefaultMaterial);
@@ -500,6 +504,12 @@ AProcStaticMeshActor* UImporter::ImportModel(const LibSWBF2::Model& model, const
 		{
 			UE_LOG(LogUF, Warning, TEXT("No Textures defined to load in model: %s - %s"), *instanceName, *modelName);
 		}
+	}
+	
+	for (int i = 0; i < sectionKeys.Num(); i++)
+	{
+		mesh->CreateSectionGroup(groupKey, streamSet);//, FRealtimeMeshSectionGroupConfig(ERealtimeMeshSectionDrawType::Static));
+		mesh->UpdateSectionConfig(sectionKeys[i], FRealtimeMeshSectionConfig(i));
 	}
 
 	//TArray<FRuntimeMeshCollisionBox> boxes;
